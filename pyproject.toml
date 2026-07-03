@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "care-graph-m"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111",
+  "uvicorn[standard]",
+  "google-generativeai",
+  "groq",
+  "anthropic",
+  "pdfplumber",
+  "pypdf2",
+  "pillow",
+  "pytesseract",
+  "aiohttp",
+  "feedparser",
+  "python-multipart",
+  "aiosqlite",
+  "pydantic>=2",
+  "python-dotenv",
+  "httpx",
+]
+
+[project.optional-dependencies]
+neo4j = ["neo4j>=5"]
+transformers = ["sentence-transformers", "torch"]
+dev = ["pytest", "pytest-asyncio", "httpx"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["care*", "api*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

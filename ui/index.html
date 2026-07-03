@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CARE-Graph-M — AI Hallucination Juror</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root {
+  --bg:      #0b0d14;
+  --surface: #13161f;
+  --card:    #181b27;
+  --border:  #252836;
+  --border2: #2e3247;
+  --accent:  #7c6df7;
+  --accent2: #9d91ff;
+  --green:   #22c55e;
+  --orange:  #fb923c;
+  --red:     #ef4444;
+  --blue:    #3b82f6;
+  --purple:  #a78bfa;
+  --gray:    #8892a4;
+  --text:    #dde3ed;
+  --dim:     #525c6e;
+  --r:       10px;
+  --font:    'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+
+/* ── HEADER ─────────────────────────────────────────────── */
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 28px; display: flex; align-items: center; gap: 18px;
+  height: 54px; position: sticky; top: 0; z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.logo-icon {
+  width: 26px; height: 26px; border-radius: 6px;
+  background: linear-gradient(135deg, #7c6df7, #9d91ff);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.logo h1 { font-size: 0.92rem; font-weight: 700; color: var(--text); }
+.logo h1 span { color: var(--dim); font-weight: 400; }
+
+.stats-bar {
+  display: flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; margin-left: 8px;
+}
+.stat {
+  padding: 4px 12px; font-size: 0.72rem; display: flex; align-items: center; gap: 5px;
+  border-right: 1px solid var(--border);
+}
+.stat:last-child { border-right: none; }
+.stat-val { font-weight: 700; }
+.stat-label { color: var(--dim); }
+.stat-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+nav { display: flex; gap: 2px; margin-left: auto; }
+nav button {
+  background: none; border: none; color: var(--gray); padding: 5px 13px;
+  border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500;
+  font-family: var(--font); transition: all 0.15s; white-space: nowrap;
+}
+nav button:hover { background: var(--card); color: var(--text); }
+nav button.active { background: var(--accent); color: #fff; }
+nav button.demo-nav { color: var(--orange); border: 1px solid rgba(251,146,60,0.25); }
+nav button.demo-nav.active { background: var(--orange); color: #fff; border-color: var(--orange); }
+
+/* ── LAYOUT ──────────────────────────────────────────────── */
+main { max-width: 1060px; margin: 0 auto; padding: 24px 20px; }
+.section { display: none; }
+.section.visible { display: block; }
+
+/* ── CARDS ───────────────────────────────────────────────── */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; margin-bottom: 12px; }
+.card-title { font-size: 0.72rem; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px; }
+
+/* ── INPUTS ──────────────────────────────────────────────── */
+textarea, input[type=text], input[type=search] {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); border-radius: 7px; padding: 10px 12px;
+  font-family: var(--font); font-size: 0.86rem; resize: vertical; transition: border 0.15s;
+}
+textarea:focus, input:focus { outline: none; border-color: var(--accent); }
+select {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  border-radius: 7px; padding: 8px 10px; font-family: var(--font); font-size: 0.82rem;
+}
+select:focus { outline: none; border-color: var(--accent); }
+
+/* ── BUTTONS ─────────────────────────────────────────────── */
+button.primary {
+  background: var(--accent); color: #fff; border: none; border-radius: 7px;
+  padding: 8px 20px; font-size: 0.86rem; font-weight: 600; cursor: pointer;
+  font-family: var(--font); transition: opacity 0.15s; white-space: nowrap;
+}
+button.primary:hover { opacity: 0.88; }
+button.primary:disabled { opacity: 0.35; cursor: not-allowed; }
+button.primary.demo-primary { background: var(--orange); }
+button.ghost {
+  background: none; border: 1px solid var(--border); color: var(--text);
+  border-radius: 7px; padding: 6px 14px; font-size: 0.8rem; cursor: pointer;
+  font-family: var(--font); transition: all 0.15s;
+}
+button.ghost:hover { border-color: var(--accent); color: var(--accent2); }
+button.ghost:disabled { opacity: 0.35; cursor: not-allowed; }
+button.danger-ghost { border-color: #7f1d1d; color: var(--red); }
+button.danger-ghost:hover { background: rgba(239,68,68,0.08); border-color: var(--red); }
+button.icon-btn {
+  background: none; border: none; color: var(--dim); cursor: pointer;
+  padding: 2px 6px; font-size: 1rem; line-height: 1; transition: color 0.15s;
+}
+button.icon-btn:hover { color: var(--red); }
+label.toggle { display: flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--gray); cursor: pointer; user-select: none; }
+input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; }
+
+/* ── EVIDENCE BUILDER ────────────────────────────────────── */
+.ev-builder { display: flex; flex-direction: column; gap: 8px; }
+.ev-empty { text-align: center; padding: 24px; border: 1px dashed var(--border); border-radius: 8px; color: var(--dim); font-size: 0.82rem; }
+.ev-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.ev-top { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.ev-name { flex: 1; min-width: 130px; }
+.ev-mode-toggle { display: flex; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; flex-shrink: 0; }
+.ev-mode-btn {
+  background: none; border: none; padding: 4px 11px; cursor: pointer;
+  font-size: 0.75rem; font-weight: 500; color: var(--gray); font-family: var(--font);
+}
+.ev-mode-btn.active { background: var(--accent); color: #fff; }
+.ev-textarea { font-size: 0.82rem; }
+.ev-table-builder { display: none; }
+.ev-pdf-zone { display: none; }
+.ev-drop {
+  border: 2px dashed var(--border); border-radius: 8px; padding: 20px;
+  text-align: center; cursor: pointer; transition: border-color 0.15s;
+  font-size: 0.8rem; color: var(--dim);
+}
+.ev-drop:hover, .ev-drop.dragover { border-color: var(--accent); color: var(--accent2); }
+.ev-drop input[type=file] { display: none; }
+.ev-pdf-status { font-size: 0.78rem; margin-top: 8px; min-height: 20px; display: flex; align-items: center; gap: 6px; }
+.ev-record { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 9px 10px; margin-bottom: 6px; }
+.ev-record-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+.ev-record-label { font-size: 0.68rem; color: var(--dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.ev-field { display: flex; gap: 6px; align-items: center; margin-bottom: 5px; }
+.ev-fkey, .ev-fval {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  border-radius: 5px; padding: 5px 8px; font-family: var(--font); font-size: 0.8rem;
+}
+.ev-fkey { width: 130px; flex-shrink: 0; }
+.ev-fval { flex: 1; }
+.ev-fkey:focus, .ev-fval:focus { outline: none; border-color: var(--accent); }
+.ev-actions { margin-top: 8px; }
+.ev-add-btn { font-size: 0.75rem; padding: 3px 10px; }
+/* ── ERROR BANNER ─────────────────────────────────────────── */
+.err-banner {
+  display: none; background: rgba(239,68,68,0.1); border: 1px solid #7f1d1d;
+  border-radius: 7px; padding: 9px 14px; font-size: 0.82rem; color: #fca5a5;
+  margin-top: 10px; line-height: 1.5;
+}
+.err-banner.visible { display: block; }
+
+/* ── PIPELINE STEPPER ────────────────────────────────────── */
+.pipeline { display: flex; align-items: stretch; overflow-x: auto; padding-bottom: 2px; }
+.pipe-step {
+  flex: 1; min-width: 140px; background: var(--surface); border: 1px solid var(--border);
+  border-right: none; padding: 11px 13px; transition: all 0.25s;
+}
+.pipe-step:first-child { border-radius: 8px 0 0 8px; }
+.pipe-step:last-child  { border-radius: 0 8px 8px 0; border-right: 1px solid var(--border); }
+.pipe-step.running { border-color: var(--accent); background: rgba(124,109,247,0.07); }
+.pipe-step.running + .pipe-step { border-left-color: var(--accent); }
+.pipe-step.done    { border-color: #166534; background: rgba(34,197,94,0.05); }
+.pipe-step.done + .pipe-step { border-left-color: #166534; }
+.pipe-num  { font-size: 0.63rem; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.07em; }
+.pipe-name { font-size: 0.8rem; font-weight: 600; margin: 3px 0 2px; }
+.pipe-desc { font-size: 0.7rem; color: var(--dim); min-height: 26px; line-height: 1.4; }
+.pipe-status { margin-top: 5px; font-size: 0.68rem; font-weight: 600; color: var(--dim); }
+.pipe-status.running { color: var(--accent); }
+.pipe-status.done    { color: var(--green); }
+
+/* ── RESULTS ─────────────────────────────────────────────── */
+.verdict-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+  border: 1px solid;
+}
+.status-pill.APPROVED     { border-color: #166534; background: rgba(34,197,94,0.08); color: var(--green); }
+.status-pill.FLAGGED      { border-color: #92400e; background: rgba(251,146,60,0.08); color: var(--orange); }
+.status-pill.NEEDS_REVIEW { border-color: #4c1d95; background: rgba(167,139,250,0.08); color: var(--purple); }
+.status-pill.BLOCKED      { border-color: #7f1d1d; background: rgba(239,68,68,0.08); color: var(--red); }
+.status-pill.UNRESOLVABLE { border-color: var(--border); background: var(--surface); color: var(--gray); }
+
+.ring-group { display: flex; gap: 20px; flex-wrap: wrap; }
+.ring-wrap { text-align: center; }
+.ring-label { font-size: 0.68rem; color: var(--gray); margin-top: 5px; }
+svg.ring { transform: rotate(-90deg); }
+
+.diff-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 15px 17px; font-size: 0.88rem; line-height: 1.75;
+  white-space: pre-wrap; word-break: break-word;
+}
+del.diff-del { background: rgba(239,68,68,0.18); color: #fca5a5; text-decoration: line-through; border-radius: 3px; padding: 1px 3px; }
+ins.diff-ins { background: rgba(34,197,94,0.18); color: #86efac; text-decoration: none; border-radius: 3px; padding: 1px 3px; }
+.toggle-raw { font-size: 0.72rem; color: var(--dim); cursor: pointer; text-decoration: underline; }
+.toggle-raw:hover { color: var(--text); }
+.raw-compare { display: none; margin-top: 10px; gap: 10px; }
+.raw-compare.open { display: flex; }
+.answer-label { font-size: 0.68rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+.answer-box { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 12px; font-size: 0.85rem; line-height: 1.65; white-space: pre-wrap; min-height: 48px; }
+
+.claim-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 7px; }
+.claim-row  { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 5px; }
+.claim-text { font-size: 0.84rem; flex: 1; }
+.claim-correction { background: rgba(34,197,94,0.07); border: 1px solid #166534; border-radius: 5px; padding: 7px 9px; font-size: 0.78rem; color: #86efac; margin-top: 5px; }
+.claim-evidence { font-size: 0.73rem; color: var(--dim); font-style: italic; margin-top: 3px; }
+.claim-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px; }
+.claim-meta span { font-size: 0.68rem; color: var(--dim); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+.conf-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 0.72rem; color: var(--dim); }
+.conf-track { background: var(--border); border-radius: 3px; height: 4px; flex: 1; overflow: hidden; }
+.conf-fill  { height: 100%; border-radius: 3px; background: var(--accent); }
+
+.vbadge {
+  display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 20px;
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+}
+.vbadge.approved,.vbadge.APPROVED,.vbadge.supported,.vbadge.SUPPORTED { background:#14532d; color:var(--green); }
+.vbadge.flagged,.vbadge.FLAGGED { background:#431407; color:var(--orange); }
+.vbadge.needs_review,.vbadge.NEEDS_REVIEW,.vbadge.ambiguous,.vbadge.AMBIGUOUS { background:#1e1b4b; color:var(--purple); }
+.vbadge.blocked,.vbadge.BLOCKED,.vbadge.contradicted,.vbadge.CONTRADICTED { background:#450a0a; color:var(--red); }
+.vbadge.partially_supported,.vbadge.PARTIALLY_SUPPORTED { background:#431407; color:var(--orange); }
+.vbadge.unsupported,.vbadge.UNSUPPORTED,.vbadge.unresolvable,.vbadge.UNRESOLVABLE { background:#1c1917; color:var(--gray); }
+
+/* ── PAPERS ──────────────────────────────────────────────── */
+.paper-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 13px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+.paper-card:hover { border-color: var(--accent); }
+.paper-card.selected { border-color: var(--accent); background: rgba(124,109,247,0.06); }
+.paper-title   { font-size: 0.86rem; font-weight: 600; margin-bottom: 3px; }
+.paper-authors { font-size: 0.7rem; color: var(--dim); margin-bottom: 5px; }
+.paper-summary { font-size: 0.77rem; color: var(--gray); line-height: 1.5; }
+
+/* ── AUDIT ───────────────────────────────────────────────── */
+.audit-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+.audit-row:hover { background: rgba(255,255,255,0.015); }
+.audit-q    { flex: 1; color: var(--gray); font-size: 0.81rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-conf { font-size: 0.72rem; color: var(--dim); white-space: nowrap; }
+.audit-ts   { font-size: 0.7rem; color: var(--dim); white-space: nowrap; }
+.audit-detail { display: none; background: var(--bg); border-radius: 7px; padding: 10px 12px; margin: 4px 0 8px; font-size: 0.77rem; color: var(--gray); line-height: 1.6; }
+.audit-detail.open { display: block; }
+
+/* ── DEMO TAB ────────────────────────────────────────────── */
+.demo-notice {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(251,146,60,0.07); border: 1px solid rgba(251,146,60,0.3);
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 0.8rem; color: var(--orange);
+}
+.demo-notice strong { font-weight: 600; }
+.scenario-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.scenario-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px; cursor: pointer; transition: all 0.15s;
+}
+.scenario-card:hover { border-color: var(--orange); }
+.scenario-card.active { border-color: var(--orange); background: rgba(251,146,60,0.07); }
+.scenario-name { font-size: 0.82rem; font-weight: 600; margin-bottom: 3px; }
+.scenario-desc { font-size: 0.72rem; color: var(--dim); line-height: 1.4; }
+.scenario-tag  { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
+.tag-catch { background: rgba(251,146,60,0.15); color: var(--orange); }
+.tag-ok    { background: rgba(34,197,94,0.12); color: var(--green); }
+.tag-edge  { background: rgba(167,139,250,0.12); color: var(--purple); }
+
+/* ── ARCHITECTURE ────────────────────────────────────────── */
+.arch-pipeline { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.arch-row { display: flex; align-items: center; gap: 0; justify-content: center; flex-wrap: wrap; }
+.arch-node { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 16px; text-align: center; font-size: 0.78rem; font-weight: 600; min-width: 120px; }
+.arch-node.user-node  { border-color: var(--blue);   background: rgba(59,130,246,0.08);  color: #93c5fd; }
+.arch-node.accent-node{ border-color: var(--accent);  background: rgba(124,109,247,0.1); color: var(--accent2); }
+.arch-node.out-node   { border-color: var(--green);   background: rgba(34,197,94,0.07);  color: var(--green); }
+.arch-node.audit-node { border-color: var(--border2); background: var(--card);           color: var(--gray); }
+.arch-arrow      { color: var(--dim); padding: 0 6px; font-size: 0.9rem; }
+.arch-arrow-down { text-align: center; color: var(--dim); font-size: 0.9rem; margin: 2px 0; }
+.arch-jury-box   { border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin: 4px 0; width: 100%; }
+.arch-jury-title { font-size: 0.65rem; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; text-align: center; margin-bottom: 10px; }
+.arch-agents { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; align-items: center; }
+.arch-agent  { background: var(--card); border: 1px solid var(--border2); border-radius: 6px; padding: 7px 12px; font-size: 0.75rem; font-weight: 600; text-align: center; }
+.arch-agent small { display: block; font-size: 0.63rem; color: var(--dim); font-weight: 400; margin-top: 2px; }
+.arch-verdict-row { display: flex; gap: 6px; justify-content: center; margin-top: 8px; flex-wrap: wrap; }
+.arch-verdict { padding: 4px 10px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; }
+.spec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin-top: 14px; }
+.spec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 13px; }
+.spec-card h4 { font-size: 0.79rem; font-weight: 600; margin-bottom: 5px; color: var(--accent2); }
+.spec-card p  { font-size: 0.73rem; color: var(--gray); line-height: 1.5; }
+
+/* ── MISC ────────────────────────────────────────────────── */
+.spinner {
+  display: inline-block; width: 13px; height: 13px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.65s linear infinite; vertical-align: middle; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.msg  { font-size: 0.78rem; color: var(--dim); margin-top: 7px; min-height: 18px; display: flex; align-items: center; gap: 6px; }
+.row  { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.col  { flex: 1; min-width: 160px; }
+.sep  { height: 1px; background: var(--border); margin: 14px 0; }
+.empty { color: var(--dim); font-size: 0.8rem; }
+.store-tag { font-size: 0.7rem; background: rgba(59,130,246,0.12); color: #93c5fd; border: 1px solid rgba(59,130,246,0.2); border-radius: 4px; padding: 1px 7px; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="/">
+    <div class="logo-icon">J</div>
+    <h1>CARE-Graph-M <span>/ Hallucination Juror</span></h1>
+  </a>
+
+  <div class="stats-bar">
+    <div class="stat"><span class="stat-dot" style="background:#525c6e"></span><span class="stat-val" id="s-total">—</span><span class="stat-label">&nbsp;judged</span></div>
+    <div class="stat"><span class="stat-dot" style="background:#fb923c"></span><span class="stat-val" id="s-flagged">—</span><span class="stat-label">&nbsp;flagged</span></div>
+    <div class="stat"><span class="stat-dot" style="background:#22c55e"></span><span class="stat-val" id="s-approved">—</span><span class="stat-label">&nbsp;approved</span></div>
+    <div class="stat"><span class="stat-dot" style="background:#8892a4"></span><span class="stat-val" id="s-store">—</span><span class="stat-label">&nbsp;in store</span></div>
+  </div>
+
+  <nav>
+    <button class="active"   onclick="showTab('verify',this)">Ask &amp; Verify</button>
+    <button                  onclick="showTab('papers',this)">Research Papers</button>
+    <button                  onclick="showTab('audit',this)">Audit Trail</button>
+    <button                  onclick="showTab('arch',this)">Architecture</button>
+    <button class="demo-nav" onclick="showTab('demo',this)">Demo</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ══ ASK & VERIFY (real) ═══════════════════════════════════════════════════ -->
+<div id="tab-verify" class="section visible">
+
+  <div class="card">
+    <div class="card-title">Question</div>
+    <textarea id="v-question" rows="2" placeholder="Ask a factual question to be verified by the jury…"></textarea>
+  </div>
+
+  <!-- Evidence Builder -->
+  <div class="card">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px">
+      <div class="card-title" style="margin:0">Evidence sources</div>
+      <button class="ghost" style="font-size:0.75rem; padding:3px 10px; margin-left:auto" onclick="addSource('v')">+ Add source</button>
+      <label class="toggle"><input type="checkbox" id="v-use-store"> Also use evidence store <span class="store-tag" id="v-store-count">0 items</span></label>
+    </div>
+    <div class="ev-builder" id="v-ev-list">
+      <div class="ev-empty" id="v-ev-empty">
+        No evidence sources added yet.<br>Add a text document or table to give the juror something to verify against.
+      </div>
+    </div>
+  </div>
+
+  <div class="row" style="align-items:center">
+    <button class="primary" id="v-run-btn" onclick="runVerify()">Run Jury</button>
+    <div class="msg" id="v-status"></div>
+  </div>
+  <div class="err-banner" id="v-error"></div>
+
+  <!-- Pipeline -->
+  <div class="card" id="v-pipeline-card" style="display:none; margin-top:12px">
+    <div class="card-title">Jury pipeline</div>
+    <div class="pipeline" id="v-pipeline"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="v-results" style="display:none">
+    <div class="card" style="margin-top:12px">
+      <div class="verdict-row">
+        <div id="v-verdict-pill"></div>
+        <div class="ring-group" id="v-rings"></div>
+        <div id="v-audit-label" style="font-size:0.7rem; color:var(--dim); margin-left:auto; align-self:flex-end"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px">
+        <div class="card-title" style="margin:0">Answer</div>
+        <span class="toggle-raw" onclick="toggleRaw('v',this)">Show raw vs governed</span>
+      </div>
+      <div class="diff-box" id="v-diff"></div>
+      <div class="raw-compare" id="v-raw-compare">
+        <div class="col"><div class="answer-label">Raw LLM <span style="color:#ef4444">(untrusted)</span></div><div class="answer-box" id="v-raw"></div></div>
+        <div class="col"><div class="answer-label">Governed <span style="color:#22c55e">(jury-approved)</span></div><div class="answer-box" id="v-gov"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Claim verdicts</div>
+      <div id="v-claims"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ RESEARCH PAPERS ════════════════════════════════════════════════════════ -->
+<div id="tab-papers" class="section">
+  <div class="card">
+    <div class="card-title">Search research papers</div>
+    <div class="row" style="gap:8px">
+      <input type="search" id="paper-topic" placeholder="hallucination detection, RAG, medical summarization…" style="flex:1">
+      <button class="primary" onclick="searchPapers()">Search arXiv</button>
+    </div>
+    <label class="toggle" style="margin-top:9px">
+      <input type="checkbox" id="demo-fallback" checked> Use synthetic demo papers if arXiv unavailable
+    </label>
+  </div>
+
+  <div id="paper-list"></div>
+
+  <div id="paper-process-section" style="display:none">
+    <div class="card">
+      <div class="card-title">Selected paper</div>
+      <div style="font-size:0.86rem; font-weight:600; margin-bottom:12px" id="selected-paper-title"></div>
+      <div class="row" style="gap:8px; align-items:center">
+        <button class="primary" onclick="processPaper()">Process &amp; verify</button>
+        <div class="msg" id="paper-status"></div>
+      </div>
+
+      <div id="paper-result" style="display:none; margin-top:16px">
+        <div class="sep"></div>
+        <div class="card-title">Evidence verification</div>
+        <div class="ring-group" id="paper-rings" style="margin:10px 0 14px"></div>
+        <div id="paper-claim-list"></div>
+        <div class="sep"></div>
+        <div class="card-title">Human decision</div>
+        <div class="row" style="gap:8px; flex-wrap:wrap">
+          <button class="ghost" id="btn-approve" onclick="decidePaper('approve')" style="border-color:#166534;color:var(--green)">✓ Approve</button>
+          <button class="ghost" id="btn-stall"   onclick="decidePaper('stall')"   style="border-color:#92400e;color:var(--orange)">⏸ Stall</button>
+          <button class="ghost" id="btn-reject"  onclick="decidePaper('reject')"  style="border-color:#7f1d1d;color:var(--red)">✗ Reject</button>
+        </div>
+        <div class="msg" id="decide-status"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ AUDIT TRAIL ════════════════════════════════════════════════════════════ -->
+<div id="tab-audit" class="section">
+  <div class="card">
+    <div style="display:flex; align-items:center; margin-bottom:14px">
+      <div class="card-title" style="margin:0">Recent audit records</div>
+      <button class="ghost" onclick="loadAudit()" style="margin-left:auto; font-size:0.75rem; padding:3px 10px">Refresh</button>
+    </div>
+    <div id="audit-list"><span class="empty">Loading…</span></div>
+  </div>
+</div>
+
+<!-- ══ ARCHITECTURE ═══════════════════════════════════════════════════════════ -->
+<div id="tab-arch" class="section">
+  <div class="card">
+    <div class="card-title">System architecture</div>
+    <div class="arch-pipeline">
+      <div class="arch-row">
+        <div class="arch-node user-node">User Query</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node accent-node">Agent 1<br><small style="font-weight:400;font-size:0.68rem">Generator (Gemini / Groq)</small></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node" style="border-color:#ef4444;background:rgba(239,68,68,0.08);color:#fca5a5">Raw Answer<br><small style="font-weight:400;font-size:0.68rem;color:#f87171">UNTRUSTED</small></div>
+      </div>
+      <div class="arch-arrow-down">↓</div>
+      <div class="arch-jury-box">
+        <div class="arch-jury-title">Jury pipeline — intercepts before release</div>
+        <div class="arch-agents">
+          <div class="arch-agent" style="border-color:#6366f1;color:#a5b4fc">Agent 2<br><small>Claim Extractor</small></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-agent" style="border-color:#0891b2;color:#67e8f9">Agent 3<br><small>Fact Verifier</small></div>
+          <span style="color:var(--dim);padding:0 4px">+</span>
+          <div class="arch-agent" style="border-color:#0891b2;color:#67e8f9">Agent 4<br><small>Math Validator</small></div>
+          <span style="color:var(--dim);padding:0 4px">+</span>
+          <div class="arch-agent" style="border-color:#0891b2;color:#67e8f9">Reasoning<br><small>Auditor</small></div>
+          <div class="arch-arrow">→</div>
+          <div class="arch-agent" style="border-color:#7c6df7;color:#c4b5fd">Agent 5<br><small>Verdict Engine</small></div>
+        </div>
+        <div class="arch-verdict-row">
+          <div class="arch-verdict" style="background:rgba(34,197,94,0.1);color:#22c55e;border:1px solid #166534">APPROVED</div>
+          <div class="arch-verdict" style="background:rgba(251,146,60,0.1);color:#fb923c;border:1px solid #92400e">FLAGGED → Correction</div>
+          <div class="arch-verdict" style="background:rgba(167,139,250,0.1);color:#a78bfa;border:1px solid #4c1d95">NEEDS_REVIEW</div>
+          <div class="arch-verdict" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid #7f1d1d">BLOCKED</div>
+        </div>
+      </div>
+      <div class="arch-arrow-down">↓</div>
+      <div class="arch-row" style="gap:10px">
+        <div class="arch-node out-node">Governed Answer</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-node audit-node">SQLite Audit Trail</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-node audit-node">Paper Feeder</div>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+    <div class="card-title">Agent reference</div>
+    <div class="spec-grid">
+      <div class="spec-card"><h4>Generator (1)</h4><p>Calls base LLM. Output is treated as untrusted evidence, never the final answer.</p></div>
+      <div class="spec-card"><h4>Claim Extractor (2)</h4><p>Breaks free text into structured JSON claims: type, entity, metric, value, unit, time period, safety flag.</p></div>
+      <div class="spec-card"><h4>Fact Verifier (3)</h4><p>delta = |claim − evidence| / |evidence|. &lt;1% → supported. 1–20% → soft conflict. &gt;20% → contradicted.</p></div>
+      <div class="spec-card"><h4>Math Validator (4)</h4><p>Deterministic numeric checks: unit groups, range plausibility, formula evaluation. Returns validity 0–1.</p></div>
+      <div class="spec-card"><h4>Verdict Engine (5)</h4><p>BLOCKED if any claim blocked. FLAGGED on hard contradiction. APPROVED only if all claims supported.</p></div>
+      <div class="spec-card"><h4>Correction Agent</h4><p>Rewrites contradicted spans using evidence text only. Triggered on FLAGGED verdict.</p></div>
+      <div class="spec-card"><h4>Reasoning Auditor</h4><p>Asks LLM whether conclusion follows from evidence. Contributes a consistency score 0–1.</p></div>
+      <div class="spec-card"><h4>Confidence Vector</h4><p>Six dimensions: source reliability, freshness, extraction quality, corroboration, math validity, semantic alignment.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ DEMO TAB ═══════════════════════════════════════════════════════════════ -->
+<div id="tab-demo" class="section">
+
+  <div class="demo-notice">
+    <span>⚠</span>
+    <div><strong>Demo mode</strong> — These scenarios use fault injection to intentionally create wrong LLM answers that the jury catches and corrects. Not representative of real-world accuracy.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Scenarios</div>
+    <div class="scenario-grid" id="demo-scenario-grid"></div>
+
+    <div class="sep"></div>
+    <div class="card-title">Question</div>
+    <textarea id="d-question" rows="2"></textarea>
+
+    <div style="margin-top:10px; display:flex; align-items:center; gap:14px; flex-wrap:wrap">
+      <label class="toggle"><input type="checkbox" id="d-fault-inject" checked> Fault inject (make LLM produce an intentional error)</label>
+    </div>
+
+    <div style="margin-top:12px">
+      <button class="primary demo-primary" id="d-run-btn" onclick="runDemo()">Run Demo</button>
+    </div>
+    <div class="msg" id="d-status"></div>
+  </div>
+
+  <!-- Pipeline -->
+  <div class="card" id="d-pipeline-card" style="display:none">
+    <div class="card-title">Jury pipeline</div>
+    <div class="pipeline" id="d-pipeline"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="d-results" style="display:none">
+    <div class="card">
+      <div class="verdict-row">
+        <div id="d-verdict-pill"></div>
+        <div class="ring-group" id="d-rings"></div>
+        <div id="d-audit-label" style="font-size:0.7rem; color:var(--dim); margin-left:auto; align-self:flex-end"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px">
+        <div class="card-title" style="margin:0">Answer</div>
+        <span class="toggle-raw" onclick="toggleRaw('d',this)">Show raw vs governed</span>
+      </div>
+      <div class="diff-box" id="d-diff"></div>
+      <div class="raw-compare" id="d-raw-compare">
+        <div class="col"><div class="answer-label">Raw LLM <span style="color:#ef4444">(untrusted)</span></div><div class="answer-box" id="d-raw"></div></div>
+        <div class="col"><div class="answer-label">Governed <span style="color:#22c55e">(jury-approved)</span></div><div class="answer-box" id="d-gov"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Claim verdicts</div>
+      <div id="d-claims"></div>
+    </div>
+  </div>
+
+</div>
+</main>
+
+<script>
+// ── DEMO SCENARIOS ────────────────────────────────────────────────────────────
+const DEMO_SCENARIOS = [
+  {
+    name: 'Revenue error',
+    desc: 'LLM says $10M, evidence shows $8M',
+    tag: 'catch', tagLabel: 'Catches error',
+    question: 'What was the company revenue in Q3?',
+    evidence: [{"source_name":"Q3 Official Report","source_type":"official_table","table":[{"quarter":"Q3","revenue":"8","unit":"million USD"}]}],
+  },
+  {
+    name: 'Overgeneralization',
+    desc: 'LLM claims "all languages", paper says 3 English datasets',
+    tag: 'catch', tagLabel: 'Catches error',
+    question: 'Does the model work better for all languages?',
+    evidence: [{"source_name":"Research paper","source_type":"research_paper","text":"The model improves F1 score on three English low-resource datasets by 12 points compared to baseline. Results on non-English datasets were not evaluated."}],
+  },
+  {
+    name: 'Correct answer',
+    desc: 'LLM is right, jury approves',
+    tag: 'ok', tagLabel: 'Passes jury',
+    question: 'What is the capital of Germany?',
+    evidence: [{"source_name":"Geography DB","source_type":"official_documentation","text":"Berlin is the capital and largest city of Germany. It has been the German capital since reunification in 1990."}],
+  },
+  {
+    name: 'Safety-sensitive',
+    desc: 'Medical claim without sufficient evidence',
+    tag: 'edge', tagLabel: 'Needs review',
+    question: 'What is the maximum safe daily dose of acetaminophen for adults?',
+    evidence: [{"source_name":"Drug reference","source_type":"official_documentation","text":"Acetaminophen is widely used for pain relief. Dosage varies by formulation."}],
+  },
+];
+
+let _demoActive = 0;
+let _demoAutoRan = false;
+let _selectedCard = null;
+let _processResult = null;
+let _evCounters = { v: 0, rec: 0, field: 0 };
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  buildDemoScenarios();
+  buildPipeline('v');
+  buildPipeline('d');
+  loadStats();
+  updateStoreCount();
+});
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function showTab(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('visible');
+  btn.classList.add('active');
+  if (name === 'audit') loadAudit();
+  if (name === 'demo' && !_demoAutoRan) {
+    _demoAutoRan = true;
+    setTimeout(() => runDemo(true), 600);
+  }
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const [ar, sr] = await Promise.all([fetch('/audit'), fetch('/store')]);
+    if (ar.ok) {
+      const data = await ar.json();
+      const recs = data.records || [];
+      document.getElementById('s-total').textContent   = recs.length;
+      document.getElementById('s-flagged').textContent  = recs.filter(r => r.verdict === 'FLAGGED').length;
+      document.getElementById('s-approved').textContent = recs.filter(r => r.verdict === 'APPROVED').length;
+    }
+    if (sr.ok) {
+      const data = await sr.json();
+      document.getElementById('s-store').textContent = data.count;
+    }
+  } catch {}
+}
+
+async function updateStoreCount() {
+  try {
+    const r = await fetch('/store');
+    if (r.ok) {
+      const data = await r.json();
+      const el = document.getElementById('v-store-count');
+      if (el) el.textContent = data.count + ' items';
+      document.getElementById('s-store').textContent = data.count;
+    }
+  } catch {}
+}
+
+// ── EVIDENCE BUILDER ──────────────────────────────────────────────────────────
+function addSource(prefix) {
+  const id = _evCounters.v++;
+  const listId = prefix + '-ev-list';
+  const emptyId = prefix + '-ev-empty';
+  const empty = document.getElementById(emptyId);
+  if (empty) empty.style.display = 'none';
+
+  const html = `
+  <div class="ev-card" id="evc-${id}">
+    <div class="ev-top">
+      <input class="ev-name" placeholder="Source name" value="Source ${id + 1}" style="flex:1;min-width:120px">
+      <select class="ev-type">
+        <option value="official_table">Official table</option>
+        <option value="official_documentation">Official document</option>
+        <option value="news_article">News article</option>
+        <option value="research_paper">Research paper</option>
+        <option value="unknown">Unknown</option>
+      </select>
+      <div class="ev-mode-toggle">
+        <button class="ev-mode-btn active" onclick="setEvMode(${id},'text',this)">Text</button>
+        <button class="ev-mode-btn"        onclick="setEvMode(${id},'table',this)">Table</button>
+        <button class="ev-mode-btn"        onclick="setEvMode(${id},'pdf',this)">PDF</button>
+      </div>
+      <button class="icon-btn" title="Remove source" onclick="removeSource(${id})">×</button>
+    </div>
+    <div id="ev-text-${id}">
+      <textarea class="ev-textarea" rows="3" placeholder="Paste evidence text here…"></textarea>
+    </div>
+    <div id="ev-table-${id}" class="ev-table-builder">
+      <div id="ev-records-${id}"></div>
+      <button class="ghost ev-add-btn" onclick="addRecord(${id})">+ Add row</button>
+    </div>
+    <div id="ev-pdf-${id}" class="ev-pdf-zone">
+      <div class="ev-drop" id="ev-drop-${id}"
+        onclick="document.getElementById('ev-file-${id}').click()"
+        ondragover="event.preventDefault();this.classList.add('dragover')"
+        ondragleave="this.classList.remove('dragover')"
+        ondrop="handleDrop(event,${id})">
+        <input type="file" id="ev-file-${id}" accept=".pdf,.txt,.csv" onchange="handleFileSelect(event,${id})">
+        <div>Drop a PDF, TXT, or CSV here, or <span style="color:var(--accent);text-decoration:underline">click to browse</span></div>
+        <div style="font-size:0.7rem; margin-top:4px; color:var(--dim)">File is uploaded to the evidence store and used automatically</div>
+      </div>
+      <div class="ev-pdf-status" id="ev-pdf-st-${id}"></div>
+    </div>
+  </div>`;
+  document.getElementById(listId).insertAdjacentHTML('beforeend', html);
+}
+
+function removeSource(id) {
+  document.getElementById('evc-' + id).remove();
+  // Show empty notice if no cards left
+  const list = document.getElementById('v-ev-list');
+  if (!list.querySelector('.ev-card')) {
+    const empty = document.getElementById('v-ev-empty');
+    if (empty) empty.style.display = '';
+  }
+}
+
+function setEvMode(id, mode, btn) {
+  document.querySelectorAll(`#evc-${id} .ev-mode-btn`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('ev-text-'  + id).style.display = mode === 'text'  ? 'block' : 'none';
+  document.getElementById('ev-table-' + id).style.display = mode === 'table' ? 'block' : 'none';
+  document.getElementById('ev-pdf-'   + id).style.display = mode === 'pdf'   ? 'block' : 'none';
+  if (mode === 'table' && !document.getElementById('ev-records-' + id).children.length) {
+    addRecord(id);
+  }
+}
+
+function handleDrop(event, id) {
+  event.preventDefault();
+  document.getElementById('ev-drop-' + id).classList.remove('dragover');
+  const file = event.dataTransfer.files[0];
+  if (file) uploadFile(id, file);
+}
+
+function handleFileSelect(event, id) {
+  const file = event.target.files[0];
+  if (file) uploadFile(id, file);
+}
+
+async function uploadFile(id, file) {
+  const st = document.getElementById('ev-pdf-st-' + id);
+  st.innerHTML = `<span class="spinner"></span> Uploading ${esc(file.name)}…`;
+
+  const sourceName = document.getElementById('evc-' + id).querySelector('.ev-name').value.trim() || file.name;
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  let url;
+  if (ext === 'pdf') {
+    url = `/ingest/pdf?source_id=${encodeURIComponent(sourceName)}`;
+  } else if (ext === 'csv') {
+    // CSV goes via table ingest — read it as text and send rows
+    const text = await file.text();
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    const rows = lines.slice(1).map(line => {
+      const vals = line.split(',');
+      return Object.fromEntries(headers.map((h, i) => [h, (vals[i] || '').trim()]));
+    });
+    try {
+      const r = await fetch('/ingest/table', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({source_id: sourceName, rows}),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      st.innerHTML = `<span style="color:var(--green)">✓ ${esc(file.name)} — ${d.ingested} rows ingested into evidence store</span>`;
+      document.getElementById('v-use-store').checked = true;
+      updateStoreCount();
+    } catch (e) {
+      st.innerHTML = `<span style="color:var(--red)">Error: ${esc(e.message)}</span>`;
+    }
+    return;
+  } else {
+    // Plain text
+    const text = await file.text();
+    try {
+      const r = await fetch('/ingest/text', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({source_id: sourceName, text}),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      st.innerHTML = `<span style="color:var(--green)">✓ ${esc(file.name)} — ${d.ingested} chunks ingested into evidence store</span>`;
+      document.getElementById('v-use-store').checked = true;
+      updateStoreCount();
+    } catch (e) {
+      st.innerHTML = `<span style="color:var(--red)">Error: ${esc(e.message)}</span>`;
+    }
+    return;
+  }
+
+  try {
+    const r = await fetch(url, {method: 'POST', body: formData});
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || 'HTTP ' + r.status);
+    }
+    const d = await r.json();
+    st.innerHTML = `<span style="color:var(--green)">✓ ${esc(file.name)} — ${d.ingested} pages ingested into evidence store</span>`;
+    document.getElementById('v-use-store').checked = true;
+    updateStoreCount();
+  } catch (e) {
+    st.innerHTML = `<span style="color:var(--red)">Upload failed: ${esc(e.message)}</span>`;
+  }
+}
+
+function addRecord(evId) {
+  const recId = _evCounters.rec++;
+  const count = document.querySelectorAll(`#ev-records-${evId} .ev-record`).length + 1;
+  const html = `
+  <div class="ev-record" id="evr-${recId}">
+    <div class="ev-record-header">
+      <span class="ev-record-label">Row ${count}</span>
+      <button class="icon-btn" onclick="this.closest('.ev-record').remove()">×</button>
+    </div>
+    <div class="ev-fields" id="evf-${recId}"></div>
+    <button class="ghost ev-add-btn" onclick="addField(${recId})" style="margin-top:5px">+ field</button>
+  </div>`;
+  document.getElementById('ev-records-' + evId).insertAdjacentHTML('beforeend', html);
+  addField(recId);
+  addField(recId);
+}
+
+function addField(recId) {
+  const fid = _evCounters.field++;
+  const html = `
+  <div class="ev-field">
+    <input class="ev-fkey" placeholder="column">
+    <span style="color:var(--dim);font-size:0.8rem">:</span>
+    <input class="ev-fval" placeholder="value">
+    <button class="icon-btn" onclick="this.closest('.ev-field').remove()">×</button>
+  </div>`;
+  document.getElementById('evf-' + recId).insertAdjacentHTML('beforeend', html);
+}
+
+function getEvidenceSources(listSelector) {
+  const sources = [];
+  document.querySelectorAll(listSelector + ' .ev-card').forEach(card => {
+    const name = card.querySelector('.ev-name').value.trim() || 'source';
+    const type = card.querySelector('.ev-type').value;
+    const pdfEl   = card.querySelector('[id^="ev-pdf-"]');
+    const tableEl = card.querySelector('[id^="ev-table-"]');
+    const isPdf   = pdfEl   && pdfEl.style.display   !== 'none';
+    const isTable = tableEl && tableEl.style.display  !== 'none';
+
+    if (isPdf) {
+      // Already ingested into the store on upload — skip inline, ensure store is used
+      document.getElementById('v-use-store').checked = true;
+      return;
+    }
+    if (isTable) {
+      const table = [];
+      card.querySelectorAll('.ev-record').forEach(rec => {
+        const row = {};
+        rec.querySelectorAll('.ev-field').forEach(f => {
+          const k = f.querySelector('.ev-fkey').value.trim();
+          const v = f.querySelector('.ev-fval').value.trim();
+          if (k) row[k] = v;
+        });
+        if (Object.keys(row).length) table.push(row);
+      });
+      if (table.length) sources.push({source_name: name, source_type: type, table});
+    } else {
+      const text = card.querySelector('.ev-textarea').value.trim();
+      if (text) sources.push({source_name: name, source_type: type, text});
+    }
+  });
+  return sources;
+}
+
+// ── DEMO SCENARIOS ────────────────────────────────────────────────────────────
+function buildDemoScenarios() {
+  const grid = document.getElementById('demo-scenario-grid');
+  DEMO_SCENARIOS.forEach((s, i) => {
+    const tagColors = {catch:'tag-catch', ok:'tag-ok', edge:'tag-edge'};
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="scenario-card ${i === 0 ? 'active' : ''}" onclick="selectDemo(${i},this)">
+        <div class="scenario-name">${esc(s.name)}</div>
+        <div class="scenario-desc">${esc(s.desc)}</div>
+        <span class="scenario-tag ${tagColors[s.tag]}">${esc(s.tagLabel)}</span>
+      </div>`);
+  });
+  selectDemoData(0);
+}
+
+function selectDemo(i, el) {
+  document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  _demoActive = i;
+  selectDemoData(i);
+}
+
+function selectDemoData(i) {
+  const s = DEMO_SCENARIOS[i];
+  document.getElementById('d-question').value = s.question;
+  document.getElementById('d-fault-inject').checked = s.tag === 'catch';
+}
+
+// ── PIPELINE ──────────────────────────────────────────────────────────────────
+const PIPE_DEFS = [
+  {num:'1', name:'Generator',      desc:'Calls base LLM'},
+  {num:'2', name:'Claim Extractor',desc:'Decomposes answer'},
+  {num:'3', name:'Fact Verifier',  desc:'Matches to evidence'},
+  {num:'4', name:'Math Validator', desc:'Checks numerics'},
+  {num:'5', name:'Verdict Engine', desc:'Aggregates signals'},
+];
+
+function buildPipeline(prefix) {
+  const container = document.getElementById(prefix + '-pipeline');
+  container.innerHTML = PIPE_DEFS.map((p, i) => `
+    <div class="pipe-step" id="${prefix}-ps-${i}">
+      <div class="pipe-num">Agent ${p.num}</div>
+      <div class="pipe-name">${p.name}</div>
+      <div class="pipe-desc" id="${prefix}-pd-${i}">${p.desc}</div>
+      <div class="pipe-status" id="${prefix}-pst-${i}">Waiting</div>
+    </div>`).join('');
+}
+
+function resetPipeline(prefix) {
+  for (let i = 0; i < 5; i++) {
+    document.getElementById(prefix + '-ps-' + i).className = 'pipe-step';
+    const st = document.getElementById(prefix + '-pst-' + i);
+    st.className = 'pipe-status';
+    st.textContent = 'Waiting';
+  }
+}
+
+let _pipeTimers = {};
+
+function animatePipeline(prefix) {
+  resetPipeline(prefix);
+  document.getElementById(prefix + '-pipeline-card').style.display = 'block';
+  let step = 0;
+  const next = () => {
+    if (step > 0) document.getElementById(prefix + '-ps-' + (step - 1)).classList.remove('running');
+    if (step >= 5) return;
+    document.getElementById(prefix + '-ps-' + step).classList.add('running');
+    const st = document.getElementById(prefix + '-pst-' + step);
+    st.className = 'pipe-status running';
+    st.innerHTML = '<span class="spinner"></span> Running';
+    step++;
+    _pipeTimers[prefix] = setTimeout(next, 400);
+  };
+  next();
+}
+
+function completePipeline(prefix, data) {
+  if (_pipeTimers[prefix]) { clearTimeout(_pipeTimers[prefix]); delete _pipeTimers[prefix]; }
+  const claims = data.claims || [];
+  const contradicted = claims.filter(c => c.relation === 'contradicted').length;
+  const supported    = claims.filter(c => c.relation === 'supported').length;
+  const mathAvg      = claims.length ? claims.reduce((s,c) => s + ((c.confidence||{}).math_validity||0.5), 0) / claims.length : 0.5;
+  const infos = [
+    (data.raw_answer||'').split(' ').length + '-word answer',
+    claims.length + ' claim' + (claims.length !== 1 ? 's' : '') + ' extracted',
+    contradicted > 0 ? contradicted + ' contradicted' : supported + '/' + (claims.length || 1) + ' supported',
+    'math validity ' + mathAvg.toFixed(2),
+    'verdict: ' + (data.verdict || '?'),
+  ];
+  for (let i = 0; i < 5; i++) {
+    const el = document.getElementById(prefix + '-ps-' + i);
+    el.className = 'pipe-step done';
+    document.getElementById(prefix + '-pd-' + i).textContent = infos[i] || '';
+    const st = document.getElementById(prefix + '-pst-' + i);
+    st.className = 'pipe-status done';
+    st.textContent = '✓ Done';
+  }
+}
+
+// ── SHARED RENDERING ──────────────────────────────────────────────────────────
+function verdictColor(v) {
+  return {APPROVED:'#22c55e',FLAGGED:'#fb923c',NEEDS_REVIEW:'#a78bfa',BLOCKED:'#ef4444',UNRESOLVABLE:'#8892a4'}[v] || '#8892a4';
+}
+
+function ring(pct, color, label, size = 68) {
+  const r = (size - 10) / 2, circ = 2 * Math.PI * r, dash = (pct / 100) * circ;
+  return `<div class="ring-wrap">
+    <svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#1e293b" stroke-width="6"/>
+      <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="6"
+        stroke-dasharray="${dash} ${circ}" stroke-linecap="round"/>
+      <text transform="rotate(90,${size/2},${size/2})" x="${size/2}" y="${size/2+5}"
+        text-anchor="middle" fill="${color}" font-size="12" font-weight="700" font-family="Inter,sans-serif">
+        ${pct}%
+      </text>
+    </svg>
+    <div class="ring-label">${label}</div>
+  </div>`;
+}
+
+function diffWords(a, b) {
+  const wa = a.split(/\s+/), wb = b.split(/\s+/);
+  const m = wa.length, n = wb.length;
+  const dp = Array.from({length: m+1}, () => new Array(n+1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = wa[i-1] === wb[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  const ops = []; let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && wa[i-1] === wb[j-1]) { ops.unshift({t:'=',v:wa[i-1]}); i--; j--; }
+    else if (j > 0 && (i===0 || dp[i][j-1]>=dp[i-1][j])) { ops.unshift({t:'+',v:wb[j-1]}); j--; }
+    else { ops.unshift({t:'-',v:wa[i-1]}); i--; }
+  }
+  return ops;
+}
+
+function renderDiff(raw, gov) {
+  if (raw === gov) return esc(gov);
+  return diffWords(raw, gov).map(op =>
+    op.t === '=' ? esc(op.v) :
+    op.t === '-' ? `<del class="diff-del">${esc(op.v)}</del>` :
+                   `<ins class="diff-ins">${esc(op.v)}</ins>`
+  ).join(' ');
+}
+
+function toggleRaw(prefix, el) {
+  const open = document.getElementById(prefix + '-raw-compare').classList.toggle('open');
+  el.textContent = open ? 'Hide raw vs governed' : 'Show raw vs governed';
+}
+
+function showResults(prefix, data) {
+  const v = data.verdict || 'NEEDS_REVIEW';
+  const color = verdictColor(v);
+  const icons = {APPROVED:'✓', FLAGGED:'⚠', NEEDS_REVIEW:'?', BLOCKED:'✗', UNRESOLVABLE:'~'};
+
+  document.getElementById(prefix + '-verdict-pill').innerHTML =
+    `<div class="status-pill ${v}">${icons[v]||'?'} ${v.replace(/_/g,' ')}</div>`;
+  document.getElementById(prefix + '-audit-label').textContent =
+    data.audit_id ? 'audit id: ' + data.audit_id : '';
+
+  const claims = data.claims || [];
+  const confPct = Math.round((data.confidence || 0) * 100);
+  const suppPct = claims.length
+    ? Math.round(claims.filter(c => c.relation === 'supported').length / claims.length * 100) : 0;
+  document.getElementById(prefix + '-rings').innerHTML =
+    ring(confPct, color, 'Confidence') +
+    ring(suppPct, '#22c55e', 'Supported') +
+    ring(Math.round(claims.length ? 100 : 0), '#525c6e', claims.length + ' claim' + (claims.length!==1?'s':''));
+
+  const raw = data.raw_answer || '', gov = data.governed_answer || '';
+  document.getElementById(prefix + '-diff').innerHTML = renderDiff(raw, gov);
+  document.getElementById(prefix + '-raw').textContent = raw;
+  document.getElementById(prefix + '-gov').textContent = gov;
+  document.getElementById(prefix + '-raw-compare').classList.remove('open');
+  document.querySelector(`#${prefix}-raw-compare`).previousElementSibling
+    && (document.querySelector('[onclick^="toggleRaw(\'' + prefix + '\'"]') || {textContent:''}).textContent
+    = 'Show raw vs governed';
+
+  document.getElementById(prefix + '-claims').innerHTML = claims.length
+    ? claims.map(c => claimCard(c)).join('')
+    : '<span class="empty">No claims extracted.</span>';
+
+  document.getElementById(prefix + '-results').style.display = 'block';
+}
+
+function claimCard(c) {
+  const rel = (c.relation || 'unsupported').toLowerCase();
+  const conf = c.confidence || {};
+  const dims = [['Source reliability', conf.source_reliability], ['Math validity', conf.math_validity], ['Semantic', conf.semantic_alignment]].filter(([,v]) => v != null);
+  return `<div class="claim-card">
+    <div class="claim-row">
+      <span class="vbadge ${rel}">${rel.replace(/_/g,' ')}</span>
+      <span class="claim-text">${esc(c.claim)}</span>
+    </div>
+    ${c.correction ? `<div class="claim-correction">→ ${esc(c.correction)}</div>` : ''}
+    ${(c.evidence||[]).slice(0,1).map(e=>`<div class="claim-evidence">${esc(e.content.slice(0,140))}…</div>`).join('')}
+    ${dims.map(([label,val])=>`
+    <div class="conf-row">
+      <span style="min-width:130px">${label}</span>
+      <div class="conf-track"><div class="conf-fill" style="width:${Math.round((val||0)*100)}%"></div></div>
+      <span style="min-width:30px;text-align:right">${((val||0)*100).toFixed(0)}%</span>
+    </div>`).join('')}
+    <div class="claim-meta"><span>${c.claim_type}</span><span>score ${((conf.scalar||0)).toFixed(2)}</span></div>
+  </div>`;
+}
+
+// ── RUN VERIFY (real) ─────────────────────────────────────────────────────────
+async function runVerify() {
+  const q = document.getElementById('v-question').value.trim();
+  if (!q) { document.getElementById('v-status').textContent = 'Enter a question first.'; return; }
+
+  const ev = getEvidenceSources('#v-ev-list');
+  const useStore = document.getElementById('v-use-store').checked;
+
+  document.getElementById('v-run-btn').disabled = true;
+  document.getElementById('v-status').innerHTML = '<span class="spinner"></span> Running…';
+  document.getElementById('v-error').classList.remove('visible');
+  document.getElementById('v-results').style.display = 'none';
+
+  animatePipeline('v');
+
+  let data;
+  try {
+    const resp = await fetch('/verify/generate', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({question: q, evidence_sources: ev, use_graph_context: useStore}),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || 'HTTP ' + resp.status);
+    }
+    data = await resp.json();
+  } catch (e) {
+    document.getElementById('v-status').innerHTML = '';
+    const banner = document.getElementById('v-error');
+    banner.textContent = 'Error: ' + e.message;
+    if (e.message.includes('auth') || e.message.includes('API key') || e.message.includes('401')) {
+      banner.textContent = 'LLM authentication failed. Your API key is invalid or missing. Open .env, set GROQ_API_KEY= (or GEMINI_API_KEY=) and restart the server.';
+    }
+    banner.classList.add('visible');
+    document.getElementById('v-pipeline-card').style.display = 'none';
+    document.getElementById('v-run-btn').disabled = false;
+    return;
+  }
+  document.getElementById('v-status').innerHTML = '';
+
+  if (_pipeTimers['v']) { clearTimeout(_pipeTimers['v']); delete _pipeTimers['v']; }
+  completePipeline('v', data);
+  showResults('v', data);
+  document.getElementById('v-run-btn').disabled = false;
+  loadStats(); updateStoreCount();
+}
+
+// ── RUN DEMO ──────────────────────────────────────────────────────────────────
+async function runDemo(isAuto = false) {
+  const q = document.getElementById('d-question').value.trim();
+  if (!q) return;
+  const s = DEMO_SCENARIOS[_demoActive];
+  const ev = s.evidence || [];
+  const fault = document.getElementById('d-fault-inject').checked;
+
+  document.getElementById('d-run-btn').disabled = true;
+  document.getElementById('d-status').innerHTML = '';
+  document.getElementById('d-results').style.display = 'none';
+
+  animatePipeline('d');
+
+  let data;
+  try {
+    const resp = await fetch('/demo/generate', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({question: q, evidence_sources: ev, fault_inject: fault}),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    data = await resp.json();
+  } catch (e) {
+    document.getElementById('d-status').textContent = 'Error: ' + e.message;
+    document.getElementById('d-pipeline-card').style.display = 'none';
+    document.getElementById('d-run-btn').disabled = false;
+    return;
+  }
+
+  if (_pipeTimers['d']) { clearTimeout(_pipeTimers['d']); delete _pipeTimers['d']; }
+  completePipeline('d', data);
+  showResults('d', data);
+  document.getElementById('d-run-btn').disabled = false;
+  loadStats();
+}
+
+// ── PAPERS ────────────────────────────────────────────────────────────────────
+async function searchPapers() {
+  const topic = document.getElementById('paper-topic').value.trim();
+  if (!topic) return;
+  document.getElementById('paper-list').innerHTML = '<div class="msg"><span class="spinner"></span> Searching arXiv…</div>';
+  document.getElementById('paper-process-section').style.display = 'none';
+  try {
+    const resp = await fetch('/papers/search', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({topic, use_demo_fallback: document.getElementById('demo-fallback').checked}),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const papers = data.papers || [];
+    window._papers = papers;
+    document.getElementById('paper-list').innerHTML = papers.length
+      ? papers.map((p,i)=>`
+        <div class="paper-card" id="pcard-${i}" onclick="selectPaper(${i})">
+          <div class="paper-title">${esc(p.title)}</div>
+          <div class="paper-authors">${(p.authors||[]).slice(0,3).join(', ')}</div>
+          <div class="paper-summary">${esc((p.summary||'').slice(0,220))}…</div>
+        </div>`).join('')
+      : '<span class="empty">No results.</span>';
+  } catch (e) {
+    document.getElementById('paper-list').innerHTML = `<span class="empty">Search failed: ${esc(e.message)}</span>`;
+  }
+}
+
+function selectPaper(i) {
+  document.querySelectorAll('.paper-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('pcard-' + i).classList.add('selected');
+  _selectedCard = window._papers[i];
+  document.getElementById('selected-paper-title').textContent = _selectedCard.title;
+  document.getElementById('paper-process-section').style.display = 'block';
+  document.getElementById('paper-result').style.display = 'none';
+  document.getElementById('decide-status').innerHTML = '';
+  ['btn-approve','btn-stall','btn-reject'].forEach(id => document.getElementById(id).disabled = false);
+}
+
+async function processPaper() {
+  if (!_selectedCard) return;
+  document.getElementById('paper-status').innerHTML = '<span class="spinner"></span> Processing…';
+  document.getElementById('paper-result').style.display = 'none';
+  const q = document.getElementById('v-question').value.trim();
+  try {
+    const resp = await fetch('/papers/process', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        paper_id: _selectedCard.paper_id, title: _selectedCard.title,
+        pdf_url: _selectedCard.pdf_url, abs_url: _selectedCard.abs_url,
+        claims: q ? [q] : [],
+      }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    _processResult = data;
+    const pct = Math.round((data.overall_accuracy||0)*100);
+    document.getElementById('paper-rings').innerHTML = ring(pct,'#7c6df7','Evidence accuracy') + ring(100,'#22c55e','Complete');
+    document.getElementById('paper-claim-list').innerHTML = (data.claim_results||[]).map(r=>`
+      <div class="claim-card">
+        <div class="claim-row"><span class="vbadge ${r.verdict}">${r.verdict.replace(/_/g,' ')}</span><span class="claim-text">${esc(r.claim)}</span></div>
+        <div class="claim-evidence">${esc(r.reason)}</div>
+        <div class="claim-meta"><span>accuracy ${(r.accuracy||0).toFixed(2)}</span></div>
+      </div>`).join('');
+    document.getElementById('paper-status').innerHTML = '';
+    document.getElementById('paper-result').style.display = 'block';
+  } catch (e) {
+    document.getElementById('paper-status').textContent = 'Error: ' + e.message;
+  }
+}
+
+async function decidePaper(decision) {
+  if (!_processResult) return;
+  await fetch('/papers/decide', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      paper_id: _processResult.paper_id, title: _processResult.title,
+      decision, overall_accuracy: _processResult.overall_accuracy,
+      claim_results: _processResult.claim_results,
+    }),
+  });
+  const labels = {approve:'✓ Approved', stall:'⏸ Stalled', reject:'✗ Rejected'};
+  const colors  = {approve:'var(--green)', stall:'var(--orange)', reject:'var(--red)'};
+  document.getElementById('decide-status').innerHTML = `<span style="color:${colors[decision]}">${labels[decision]} — decision recorded</span>`;
+  ['btn-approve','btn-stall','btn-reject'].forEach(id => document.getElementById(id).disabled = true);
+}
+
+// ── AUDIT ─────────────────────────────────────────────────────────────────────
+async function loadAudit() {
+  document.getElementById('audit-list').innerHTML = '<span class="empty"><span class="spinner"></span> Loading…</span>';
+  try {
+    const resp = await fetch('/audit');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const recs = data.records || [];
+    document.getElementById('audit-list').innerHTML = recs.length
+      ? recs.map((r,i)=>`
+        <div class="audit-row" onclick="toggleAuditDetail(${i})">
+          <span class="vbadge ${r.verdict}">${r.verdict.replace('_',' ')}</span>
+          <span class="audit-q">${esc(r.question)}</span>
+          <span class="audit-conf">${Math.round((r.confidence||0)*100)}%</span>
+          <span class="audit-ts">${(r.timestamp||'').slice(0,16).replace('T',' ')}</span>
+        </div>
+        <div class="audit-detail" id="ad-${i}">
+          <strong>Audit ID:</strong> ${esc(r.id)}<br>
+          <strong>Verdict:</strong> ${r.verdict} &nbsp;·&nbsp; <strong>Confidence:</strong> ${Math.round((r.confidence||0)*100)}%
+        </div>`).join('')
+      : '<span class="empty">No records yet. Run a query first.</span>';
+  } catch (e) {
+    document.getElementById('audit-list').innerHTML = `<span class="empty">Error: ${esc(e.message)}</span>`;
+  }
+}
+
+function toggleAuditDetail(i) {
+  document.getElementById('ad-' + i).classList.toggle('open');
+}
+
+// ── UTIL ──────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

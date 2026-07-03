@@ -1,0 +1,16 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+*.db
+*.db-shm
+*.db-wal
+approved_paper_evidence.json
+stalled_paper_archive.json
+rejected_paper_signals.json
+paper/
